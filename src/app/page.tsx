@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Trophy, 
@@ -13,12 +14,17 @@ import {
   ExternalLink,
   Activity,
   Layers,
-  Users
+  Users,
+  LogIn,
+  UserPlus,
+  LayoutDashboard
 } from 'lucide-react';
 import { checkApiHealth } from '@/lib/api';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useAuth } from '@/contexts/auth-context';
 
 export default function Home() {
+  const { isAuthenticated, user } = useAuth();
   const { 
     data: apiStatus, 
     isLoading: loading, 
@@ -54,11 +60,38 @@ export default function Home() {
               href="http://localhost:3001/api/docs"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className="hidden md:inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             >
-              <span className="hidden md:inline">Documentação</span> Swagger
+              Swagger
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
+
+            {isAuthenticated ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                <span>Painel ({user?.name?.split(' ')[0]})</span>
+              </Link>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>Entrar</span>
+                </Link>
+                <Link
+                  href="/register"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-500/20 transition-all"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Cadastrar</span>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -108,6 +141,39 @@ export default function Home() {
                 <RefreshCw className="h-3.5 w-3.5" />
               </button>
             </div>
+          </div>
+
+          {/* Call to Actions */}
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+            {isAuthenticated ? (
+              <Link
+                href="/dashboard"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 active:scale-[0.99] transition-all"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                <span>Acessar Meu Painel de Atleta</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/register"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 active:scale-[0.99] transition-all"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Cadastrar-se como Atleta</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+
+                <Link
+                  href="/login"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 font-semibold text-sm shadow-sm transition-all"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>Acessar Minha Conta</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
