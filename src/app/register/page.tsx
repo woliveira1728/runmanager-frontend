@@ -74,8 +74,24 @@ export default function RegisterPage() {
     }
 
     const cpfDigits = cpf.replace(/\D/g, '');
-    if (cpfDigits.length !== 11) {
-      setErrorMessage('Por favor, informe um CPF válido com 11 dígitos.');
+    const isCpfValid = (clean: string) => {
+      if (clean.length !== 11) return false;
+      if (/^(\d)\1{10}$/.test(clean)) return false;
+      let sum = 0;
+      for (let i = 0; i < 9; i++) sum += parseInt(clean.charAt(i), 10) * (10 - i);
+      let rev = 11 - (sum % 11);
+      if (rev === 10 || rev === 11) rev = 0;
+      if (rev !== parseInt(clean.charAt(9), 10)) return false;
+      sum = 0;
+      for (let i = 0; i < 10; i++) sum += parseInt(clean.charAt(i), 10) * (11 - i);
+      rev = 11 - (sum % 11);
+      if (rev === 10 || rev === 11) rev = 0;
+      if (rev !== parseInt(clean.charAt(10), 10)) return false;
+      return true;
+    };
+
+    if (!isCpfValid(cpfDigits)) {
+      setErrorMessage('Por favor, informe um CPF válido com dígitos verificadores corretos.');
       return;
     }
 

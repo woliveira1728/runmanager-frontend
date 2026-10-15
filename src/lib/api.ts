@@ -79,3 +79,164 @@ export async function checkApiHealth(): Promise<ApiStatusResponse> {
   const response = await api.get<ApiStatusResponse>('/health');
   return response.data;
 }
+
+export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'FINISHED';
+
+export interface RegistrationBatch {
+  id: string;
+  modalityId: string;
+  batchNumber: number;
+  price: number | string;
+  maxSlots: number;
+  filledSlots: number;
+  endDate: string;
+}
+
+export interface Modality {
+  id: string;
+  eventId: string;
+  name: string;
+  minAge: number;
+  registrationBatches: RegistrationBatch[];
+}
+
+export interface Event {
+  id: string;
+  organizerId: string;
+  title: string;
+  description: string;
+  eventDate: string;
+  location: string;
+  status: EventStatus;
+  createdAt: string;
+  modalities: Modality[];
+  organizer?: {
+    id: string;
+    name: string;
+    email?: string;
+  };
+}
+
+export interface CreateEventInput {
+  title: string;
+  description: string;
+  eventDate: string;
+  location: string;
+  status?: EventStatus;
+  modalities: {
+    name: string;
+    minAge?: number;
+    batches: {
+      batchNumber: number;
+      price: number;
+      maxSlots: number;
+      endDate: string;
+    }[];
+  }[];
+}
+
+export async function fetchPublishedEvents(search?: string): Promise<Event[]> {
+  const params = search ? { search } : {};
+  const response = await api.get<Event[]>('/events', { params });
+  return response.data;
+}
+
+export async function fetchMyEvents(): Promise<Event[]> {
+  const response = await api.get<Event[]>('/events/my-events');
+  return response.data;
+}
+
+export async function createEvent(data: CreateEventInput): Promise<Event> {
+  const response = await api.post<Event>('/events', data);
+  return response.data;
+}
+
+export async function publishEvent(id: string): Promise<Event> {
+  const response = await api.patch<Event>(`/events/${id}/publish`);
+  return response.data;
+}
+
+export async function deleteEvent(id: string): Promise<Event> {
+  const response = await api.delete<Event>(`/events/${id}`);
+  return response.data;
+}
+
+export type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+
+export interface Registration {
+  id: string;
+  athleteId: string;
+  batchId: string;
+  bibNumber: number | null;
+  paymentStatus: PaymentStatus;
+  qrCodeHash: string;
+  checkedIn: boolean;
+  checkedInAt?: string | null;
+  createdAt: string;
+  batch: RegistrationBatch & {
+    modality: Modality & {
+      event: {
+        id: string;
+        title: string;
+        eventDate: string;
+        location: string;
+        status: EventStatus;
+      };
+    };
+  };
+  athlete?: {
+    id: string;
+    name: string;
+    email: string;
+    athleteProfile?: {
+      cpf: string;
+      gender: 'M' | 'F' | 'OUTRO';
+      shirtSize: 'PP' | 'P' | 'M' | 'G' | 'GG';
+      emergencyContact?: string;
+      birthDate?: string;
+    };
+  };
+  result?: {
+    id: string;
+    grossTime: string;
+    netTime: string;
+    overallPos: number;
+    categoryPos: number;
+  } | null;
+}
+
+export interface CreateRegistrationInput {
+  batchId: string;
+}
+
+export interface CheckInInput {
+  qrCodeHash: string;
+}
+
+export async function createRegistration(
+  data: CreateRegistrationInput,
+): Promise<Registration> {
+  const response = await api.post<Registration>('/registrations', data);
+  return response.data;
+}
+
+export async function fetchMyRegistrations(): Promise<Registration[]> {
+  const response = await api.get<Registration[]>('/registrations/my-registrations');
+  return response.data;
+}
+
+export async function fetchEventRegistrations(
+  eventId: string,
+): Promise<Registration[]> {
+  const response = await api.get<Registration[]>(
+    `/registrations/event/${eventId}`,
+  );
+  return response.data;
+}
+
+export async function checkInRegistration(
+  data: CheckInInput,
+): Promise<Registration> {
+  const response = await api.post<Registration>('/registrations/check-in', data);
+  return response.data;
+}

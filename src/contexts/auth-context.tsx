@@ -61,7 +61,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   });
 
-  const [isLoading, setIsLoading] = useState(() => !token);
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!localStorage.getItem('runmanager_token');
+    }
+    return false;
+  });
   const router = useRouter();
 
   const refreshUser = useCallback(async () => {
@@ -82,7 +87,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isSubscribed = true;
 
     async function syncSession() {
-      if (!token) return;
+      if (!token) {
+        if (isSubscribed) {
+          setIsLoading(false);
+        }
+        return;
+      }
       try {
         const response = await api.get<User>('/users/me');
         if (isSubscribed) {
