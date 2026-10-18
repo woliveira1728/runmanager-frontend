@@ -75,6 +75,20 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface UpdateAthleteProfileInput {
+  shirtSize?: 'PP' | 'P' | 'M' | 'G' | 'GG';
+  emergencyContact?: string;
+  medicalNotes?: string;
+  lgpdConsent?: boolean;
+}
+
+export async function updateMyProfile(
+  data: UpdateAthleteProfileInput,
+): Promise<AthleteProfile> {
+  const response = await api.put<AthleteProfile>('/users/me/profile', data);
+  return response.data;
+}
+
 export async function checkApiHealth(): Promise<ApiStatusResponse> {
   const response = await api.get<ApiStatusResponse>('/health');
   return response.data;

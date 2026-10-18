@@ -16,11 +16,15 @@ import {
   ArrowLeft,
   Calendar,
   Check,
+  Building2,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function RegisterPage() {
   const { register } = useAuth();
+
+  // Tipo de Conta (UC02: Atleta ou Organizador)
+  const [accountRole, setAccountRole] = useState<'ATHLETE' | 'ORGANIZER'>('ATHLETE');
 
   // Dados da Conta
   const [name, setName] = useState('');
@@ -73,61 +77,80 @@ export default function RegisterPage() {
       return;
     }
 
-    const cpfDigits = cpf.replace(/\D/g, '');
-    const isCpfValid = (clean: string) => {
-      if (clean.length !== 11) return false;
-      if (/^(\d)\1{10}$/.test(clean)) return false;
-      let sum = 0;
-      for (let i = 0; i < 9; i++) sum += parseInt(clean.charAt(i), 10) * (10 - i);
-      let rev = 11 - (sum % 11);
-      if (rev === 10 || rev === 11) rev = 0;
-      if (rev !== parseInt(clean.charAt(9), 10)) return false;
-      sum = 0;
-      for (let i = 0; i < 10; i++) sum += parseInt(clean.charAt(i), 10) * (11 - i);
-      rev = 11 - (sum % 11);
-      if (rev === 10 || rev === 11) rev = 0;
-      if (rev !== parseInt(clean.charAt(10), 10)) return false;
-      return true;
-    };
+    if (accountRole === 'ATHLETE') {
+      const cpfDigits = cpf.replace(/\D/g, '');
+      const isCpfValid = (clean: string) => {
+        if (clean.length !== 11) return false;
+        if (/^(\d)\1{10}$/.test(clean)) return false;
+        let sum = 0;
+        for (let i = 0; i < 9; i++) sum += parseInt(clean.charAt(i), 10) * (10 - i);
+        let rev = 11 - (sum % 11);
+        if (rev === 10 || rev === 11) rev = 0;
+        if (rev !== parseInt(clean.charAt(9), 10)) return false;
+        sum = 0;
+        for (let i = 0; i < 10; i++) sum += parseInt(clean.charAt(i), 10) * (11 - i);
+        rev = 11 - (sum % 11);
+        if (rev === 10 || rev === 11) rev = 0;
+        if (rev !== parseInt(clean.charAt(10), 10)) return false;
+        return true;
+      };
 
-    if (!isCpfValid(cpfDigits)) {
-      setErrorMessage('Por favor, informe um CPF válido com dígitos verificadores corretos.');
-      return;
-    }
+      if (!isCpfValid(cpfDigits)) {
+        setErrorMessage('Por favor, informe um CPF válido com dígitos verificadores corretos.');
+        return;
+      }
 
-    if (!birthDate) {
-      setErrorMessage('Por favor, informe sua data de nascimento.');
-      return;
-    }
+      if (!birthDate) {
+        setErrorMessage('Por favor, informe sua data de nascimento.');
+        return;
+      }
 
-    if (!emergencyContact.trim()) {
-      setErrorMessage('O contato de emergência é indispensável para sua segurança.');
-      return;
-    }
+      if (!emergencyContact.trim()) {
+        setErrorMessage('O contato de emergência é indispensável para sua segurança.');
+        return;
+      }
 
-    if (!lgpdConsent) {
-      setErrorMessage('É obrigatório consentir com o termo da LGPD para criar o perfil de atleta.');
-      return;
+      const phoneDigits = emergencyContact.replace(/\D/g, '');
+      if (phoneDigits.length < 10 || !/^[1-9]{2}/.test(phoneDigits)) {
+        setErrorMessage(
+          'O contato de emergência deve incluir um número de telefone com DDD válido (ex: (92) 99888-7766).'
+        );
+        return;
+      }
+
+      if (!lgpdConsent) {
+        setErrorMessage('É obrigatório consentir com o termo da LGPD para criar o perfil de atleta.');
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
-      await register({
-        name: name.trim(),
-        email: email.trim(),
-        password,
-        role: 'ATHLETE',
-        athleteProfile: {
-          cpf,
-          birthDate,
-          gender,
-          shirtSize,
-          emergencyContact: emergencyContact.trim(),
-          medicalNotes: medicalNotes.trim() ? medicalNotes.trim() : undefined,
-          lgpdConsent: true,
-        },
-      });
+      if (accountRole === 'ORGANIZER') {
+        await register({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          role: 'ORGANIZER',
+        });
+      } else {
+        await register({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          role: 'ATHLETE',
+          athleteProfile: {
+            cpf,
+            birthDate,
+            gender,
+            shirtSize,
+            emergencyContact: emergencyContact.trim(),
+            medicalNotes: medicalNotes.trim() ? medicalNotes.trim() : undefined,
+            lgpdConsent: true,
+          },
+        });
+      }
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 409) {
@@ -173,11 +196,48 @@ export default function RegisterPage() {
               <Trophy className="h-6 w-6" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Cadastro de Atleta
+              {accountRole === 'ATHLETE' ? 'Cadastro de Atleta' : 'Cadastro de Organizador'}
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              Crie seu perfil oficial no RunManager para se inscrever em provas e retirar kits com agilidade via QR Code
+              {accountRole === 'ATHLETE'
+                ? 'Crie seu perfil oficial no RunManager para se inscrever em provas e retirar kits com agilidade via QR Code'
+                : 'Crie sua conta de Organizador ou Assessoria Esportiva para publicar corridas, lotes e realizar check-in na arena'}
             </p>
+          </div>
+
+          {/* Seletor de Perfil (UC02: Atleta ou Organizador) */}
+          <div className="grid grid-cols-2 gap-3 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => {
+                setAccountRole('ATHLETE');
+                setErrorMessage(null);
+              }}
+              className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+                accountRole === 'ATHLETE'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <UserIcon className="h-4 w-4" />
+              <span>Sou Atleta</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setAccountRole('ORGANIZER');
+                setErrorMessage(null);
+              }}
+              className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+                accountRole === 'ORGANIZER'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Building2 className="h-4 w-4" />
+              <span>Sou Organizador</span>
+            </button>
           </div>
 
           {errorMessage && (
@@ -263,153 +323,169 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Seção 2: Perfil do Atleta */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                <Calendar className="h-4 w-4" />
-                2. Perfil Esportivo & Entrega de Kits
-              </h2>
+            {accountRole === 'ATHLETE' ? (
+              <>
+                {/* Seção 2: Perfil do Atleta */}
+                <div className="space-y-4">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <Calendar className="h-4 w-4" />
+                    2. Perfil Esportivo & Entrega de Kits
+                  </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    CPF (Obrigatório e Único) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={14}
-                    value={cpf}
-                    onChange={handleCpfChange}
-                    placeholder="000.000.000-00"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
-                  />
-                </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        CPF (Obrigatório e Único) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={14}
+                        value={cpf}
+                        onChange={handleCpfChange}
+                        placeholder="000.000.000-00"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
+                      />
+                    </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Data de Nascimento *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
-                  />
-                </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Data de Nascimento *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={birthDate}
+                        onChange={(e) => setBirthDate(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
+                      />
+                    </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Gênero para Categoria de Prova *
-                  </label>
-                  <select
-                    value={gender}
-                    onChange={(e) =>
-                      setGender(e.target.value as 'M' | 'F' | 'OUTRO')
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
-                  >
-                    <option value="M">Masculino</option>
-                    <option value="F">Feminino</option>
-                    <option value="OUTRO">Outro / Não binário</option>
-                  </select>
-                </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Gênero para Categoria de Prova *
+                      </label>
+                      <select
+                        value={gender}
+                        onChange={(e) =>
+                          setGender(e.target.value as 'M' | 'F' | 'OUTRO')
+                        }
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
+                      >
+                        <option value="M">Masculino</option>
+                        <option value="F">Feminino</option>
+                        <option value="OUTRO">Outro / Não binário</option>
+                      </select>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Tamanho da Camiseta Oficial *
-                  </label>
-                  <select
-                    value={shirtSize}
-                    onChange={(e) =>
-                      setShirtSize(
-                        e.target.value as 'PP' | 'P' | 'M' | 'G' | 'GG'
-                      )
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
-                  >
-                    <option value="PP">PP (Extra Pequeno)</option>
-                    <option value="P">P (Pequeno)</option>
-                    <option value="M">M (Médio)</option>
-                    <option value="G">G (Grande)</option>
-                    <option value="GG">GG (Extra Grande)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Seção 3: Saúde e LGPD */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                <HeartPulse className="h-4 w-4" />
-                3. Segurança em Prova & Saúde (Criptografia LGPD)
-              </h2>
-
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Contato de Emergência (Nome e Telefone) *
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      required
-                      value={emergencyContact}
-                      onChange={(e) => setEmergencyContact(e.target.value)}
-                      placeholder="Ex: Maria Souza (Mãe) - (92) 99888-7766"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    🔒 Criptografado em repouso no servidor com chave AES-256.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Observações Médicas / Alergias (Opcional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={medicalNotes}
-                    onChange={(e) => setMedicalNotes(e.target.value)}
-                    placeholder="Ex: Alérgico a penicilina, asmático leve, tipo sanguíneo O+..."
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all resize-none"
-                  />
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    🔒 Acesso restrito a socorristas da arena em caso de ocorrência médica.
-                  </p>
-                </div>
-
-                {/* Termo de Consentimento LGPD */}
-                <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 space-y-3">
-                  <div className="flex items-start gap-2.5">
-                    <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                    <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                      <strong>Termo de Consentimento para Tratamento de Dados (LGPD):</strong>
-                      <p className="mt-1 text-slate-600 dark:text-slate-400">
-                        De acordo com a Lei nº 13.709/2018 (LGPD), seus dados sensíveis de saúde e contato de emergência são protegidos com criptografia simétrica AES-256-GCM em repouso e serão consultados unicamente em situações de socorro emergencial durante a corrida de rua.
-                      </p>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Tamanho da Camiseta Oficial *
+                      </label>
+                      <select
+                        value={shirtSize}
+                        onChange={(e) =>
+                          setShirtSize(
+                            e.target.value as 'PP' | 'P' | 'M' | 'G' | 'GG'
+                          )
+                        }
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
+                      >
+                        <option value="PP">PP (Extra Pequeno)</option>
+                        <option value="P">P (Pequeno)</option>
+                        <option value="M">M (Médio)</option>
+                        <option value="G">G (Grande)</option>
+                        <option value="GG">GG (Extra Grande)</option>
+                      </select>
                     </div>
                   </div>
+                </div>
 
-                  <label className="flex items-start gap-2.5 cursor-pointer pt-2 border-t border-blue-200/50 dark:border-blue-900/40">
-                    <input
-                      type="checkbox"
-                      required
-                      checked={lgpdConsent}
-                      onChange={(e) => setLgpdConsent(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 select-none">
-                      Concordo com o armazenamento seguro e tratamento dos meus dados conforme as diretrizes da LGPD *
-                    </span>
-                  </label>
+                {/* Seção 3: Saúde e LGPD */}
+                <div className="space-y-4">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <HeartPulse className="h-4 w-4" />
+                    3. Segurança em Prova & Saúde (Criptografia LGPD)
+                  </h2>
+
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Contato de Emergência com DDD (Nome e Telefone) *
+                      </label>
+                      <div className="relative">
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          value={emergencyContact}
+                          onChange={(e) => setEmergencyContact(e.target.value)}
+                          placeholder="Ex: Maria Souza (Mãe) - (92) 99888-7766"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        🔒 Criptografado em repouso no servidor com chave AES-256.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Observações Médicas / Alergias (Opcional)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={medicalNotes}
+                        onChange={(e) => setMedicalNotes(e.target.value)}
+                        placeholder="Ex: Alérgico a penicilina, asmático leve, tipo sanguíneo O+..."
+                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all resize-none"
+                      />
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        🔒 Acesso restrito a socorristas da arena em caso de ocorrência médica.
+                      </p>
+                    </div>
+
+                    {/* Termo de Consentimento LGPD */}
+                    <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 space-y-3">
+                      <div className="flex items-start gap-2.5">
+                        <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                        <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                          <strong>Termo de Consentimento para Tratamento de Dados (LGPD):</strong>
+                          <p className="mt-1 text-slate-600 dark:text-slate-400">
+                            De acordo com a Lei nº 13.709/2018 (LGPD), seus dados sensíveis de saúde e contato de emergência são protegidos com criptografia simétrica AES-256-GCM em repouso e serão consultados unicamente em situações de socorro emergencial durante a corrida de rua.
+                          </p>
+                        </div>
+                      </div>
+
+                      <label className="flex items-start gap-2.5 cursor-pointer pt-2 border-t border-blue-200/50 dark:border-blue-900/40">
+                        <input
+                          type="checkbox"
+                          required
+                          checked={lgpdConsent}
+                          onChange={(e) => setLgpdConsent(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 select-none">
+                          Concordo com o armazenamento seguro e tratamento dos meus dados conforme as diretrizes da LGPD *
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-start gap-3">
+                <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed space-y-1">
+                  <strong className="block text-slate-900 dark:text-white">
+                    Perfil de Organizador de Eventos (RBAC)
+                  </strong>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    Ao criar uma conta de Organizador, você terá acesso imediato ao painel de criação de corridas de rua, configuração de múltiplos percursos e lotes de vagas, listagem de inscritos e console de check-in por QR Code na arena.
+                  </p>
                 </div>
               </div>
-            </div>
+            )}
 
             <button
               type="submit"

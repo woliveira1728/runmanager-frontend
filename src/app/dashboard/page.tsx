@@ -30,6 +30,8 @@ import {
   Loader2,
   Users,
   Check,
+  Edit3,
+  Volume2,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { QRCodeSVG } from 'qrcode.react';
@@ -42,8 +44,51 @@ import {
   Registration,
   fetchMyRegistrations,
   checkInRegistration,
+  updateMyProfile,
 } from '@/lib/api';
 import { EventRegistrationsModal } from '@/components/event-registrations-modal';
+
+/**
+ * Emite feedback sonoro sintetizado via Web Audio API no check-in da arena (UC06).
+ * - 'success': bip duplo agudo de confirmação
+ * - 'error': alerta sonoro grave de bloqueio/duplicidade (Exceção 6A/6B)
+ */
+function playCheckInSound(type: 'success' | 'error') {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    if (type === 'success') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(1174.66, now + 0.12);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } else {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.setValueAtTime(165, now + 0.18);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    }
+  } catch {
+    // Ignora caso o navegador bloqueie áudio automático
+  }
+}
 
 /**
  * Formata data de nascimento de forma segura ignorando conversões indevidas de fuso horário.
@@ -78,22 +123,41 @@ function formatEventDate(dateStr: string): string {
   }
 }
 
+interface ModalityFormItem {
+  name: string;
+  minAge: number;
+  batchPrice: number;
+  batchSlots: number;
+  batchEndDate: string;
+}
+
 export default function DashboardPage() {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout, refreshUser } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // Estados do formulário de criação de eventos
+  // Estados de Edição do Perfil e LGPD (UC03)
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editShirtSize, setEditShirtSize] = useState<'PP' | 'P' | 'M' | 'G' | 'GG'>('M');
+  const [editEmergencyContact, setEditEmergencyContact] = useState('');
+  const [editMedicalNotes, setEditMedicalNotes] = useState('');
+  const [editLgpdConsent, setEditLgpdConsent] = useState(true);
+
+  // Estados do formulário de criação de eventos (UC04 - Múltiplas Modalidades e Lotes)
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [eventLocation, setEventLocation] = useState('');
-  const [modalityName, setModalityName] = useState('5km Geral');
-  const [minAge, setMinAge] = useState(14);
-  const [batchPrice, setBatchPrice] = useState(80);
-  const [batchSlots, setBatchSlots] = useState(200);
-  const [batchEndDate, setBatchEndDate] = useState('');
+  const [modalitiesForm, setModalitiesForm] = useState<ModalityFormItem[]>([
+    {
+      name: '5km Corrida Geral',
+      minAge: 14,
+      batchPrice: 80,
+      batchSlots: 200,
+      batchEndDate: '',
+    },
+  ]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
@@ -121,10 +185,72 @@ export default function DashboardPage() {
     enabled: !!user,
   });
 
-  // Mutação para check-in por QR Code na arena
+  // Mutação para atualizar perfil e consentimento LGPD (UC03)
+  const updateProfileMutation = useMutation({
+    mutationFn: updateMyProfile,
+    onSuccess: async () => {
+      await refreshUser();
+      setIsEditingProfile(false);
+      setActionSuccess(
+        'Perfil esportivo, dados médicos criptografados e consentimento LGPD atualizados com sucesso!',
+      );
+      setActionError(null);
+    },
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err)) {
+        setActionError(
+          (err.response?.data as { message?: string })?.message ||
+            'Não foi possível atualizar o perfil.',
+        );
+      } else {
+        setActionError('Erro ao atualizar perfil.');
+      }
+    },
+  });
+
+  const handleOpenEditProfile = () => {
+    if (user?.athleteProfile) {
+      setEditShirtSize(user.athleteProfile.shirtSize);
+      setEditEmergencyContact(user.athleteProfile.emergencyContact || '');
+      setEditMedicalNotes(user.athleteProfile.medicalNotes || '');
+      setEditLgpdConsent(user.athleteProfile.lgpdConsent ?? true);
+    }
+    setIsEditingProfile(true);
+  };
+
+  const handleUpdateProfileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionError(null);
+    setActionSuccess(null);
+
+    if (!editLgpdConsent) {
+      setActionError(
+        'Exceção 3A: O consentimento obrigatório da LGPD para dados sensíveis de emergência não pode ser desmarcado, pois é requisito para segurança nas provas.',
+      );
+      return;
+    }
+
+    const phoneDigits = editEmergencyContact.replace(/\D/g, '');
+    if (phoneDigits.length < 10 || !/^[1-9]{2}/.test(phoneDigits)) {
+      setActionError(
+        'Exceção 3B: O contato de emergência deve conter um telefone com DDD válido (ex: (92) 99222-3344).',
+      );
+      return;
+    }
+
+    updateProfileMutation.mutate({
+      shirtSize: editShirtSize,
+      emergencyContact: editEmergencyContact.trim(),
+      medicalNotes: editMedicalNotes.trim(),
+      lgpdConsent: editLgpdConsent,
+    });
+  };
+
+  // Mutação para check-in por QR Code na arena (UC06)
   const checkInMutation = useMutation({
     mutationFn: checkInRegistration,
     onSuccess: (data) => {
+      playCheckInSound('success');
       setCheckInResult(data);
       setCheckInError(null);
       setQrCodeInput('');
@@ -132,6 +258,7 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['event-registrations'] });
     },
     onError: (err: unknown) => {
+      playCheckInSound('error');
       if (axios.isAxiosError(err)) {
         setCheckInError(
           (err.response?.data as { message?: string })?.message ||
@@ -234,11 +361,42 @@ export default function DashboardPage() {
     setEventDescription('');
     setEventDate('');
     setEventLocation('');
-    setModalityName('5km Geral');
-    setMinAge(14);
-    setBatchPrice(80);
-    setBatchSlots(200);
-    setBatchEndDate('');
+    setModalitiesForm([
+      {
+        name: '5km Corrida Geral',
+        minAge: 14,
+        batchPrice: 80,
+        batchSlots: 200,
+        batchEndDate: '',
+      },
+    ]);
+  };
+
+  const handleAddModalityRow = () => {
+    setModalitiesForm((prev) => [
+      ...prev,
+      {
+        name: prev.length === 1 ? '10km Performance' : `${(prev.length + 1) * 5}km Corrida`,
+        minAge: 18,
+        batchPrice: 100,
+        batchSlots: 150,
+        batchEndDate: prev[0]?.batchEndDate || '',
+      },
+    ]);
+  };
+
+  const handleRemoveModalityRow = (idx: number) => {
+    setModalitiesForm((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleModalityFieldChange = (
+    idx: number,
+    field: keyof ModalityFormItem,
+    value: string | number,
+  ) => {
+    setModalitiesForm((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)),
+    );
   };
 
   const handleCreateEvent = (e: React.FormEvent) => {
@@ -246,22 +404,30 @@ export default function DashboardPage() {
     setActionError(null);
     setActionSuccess(null);
 
-    if (!eventDate || !batchEndDate) {
-      setActionError('Por favor preencha as datas do evento e do lote.');
+    if (!eventDate) {
+      setActionError('Por favor preencha a data e horário da largada do evento.');
       return;
     }
 
     const evDateObj = new Date(eventDate);
-    const batchDateObj = new Date(batchEndDate);
 
     if (evDateObj <= new Date()) {
       setActionError('A data da prova deve estar no futuro.');
       return;
     }
 
-    if (batchDateObj > evDateObj) {
-      setActionError('A virada do lote não pode ser posterior à data da largada.');
-      return;
+    for (const mod of modalitiesForm) {
+      if (!mod.name.trim() || !mod.batchEndDate) {
+        setActionError('Preencha o nome e a data limite de todos os percursos/lotes.');
+        return;
+      }
+      const batchDateObj = new Date(mod.batchEndDate);
+      if (batchDateObj > evDateObj) {
+        setActionError(
+          `Exceção 4A: A data limite do lote da modalidade "${mod.name}" não pode ser posterior à data do evento.`,
+        );
+        return;
+      }
     }
 
     createMutation.mutate({
@@ -269,20 +435,18 @@ export default function DashboardPage() {
       description: eventDescription.trim(),
       eventDate: evDateObj.toISOString(),
       location: eventLocation.trim(),
-      modalities: [
-        {
-          name: modalityName.trim(),
-          minAge: Number(minAge),
-          batches: [
-            {
-              batchNumber: 1,
-              price: Number(batchPrice),
-              maxSlots: Number(batchSlots),
-              endDate: batchDateObj.toISOString(),
-            },
-          ],
-        },
-      ],
+      modalities: modalitiesForm.map((mod) => ({
+        name: mod.name.trim(),
+        minAge: Number(mod.minAge),
+        batches: [
+          {
+            batchNumber: 1,
+            price: Number(mod.batchPrice),
+            maxSlots: Number(mod.batchSlots),
+            endDate: new Date(mod.batchEndDate).toISOString(),
+          },
+        ],
+      })),
     });
   };
 
@@ -503,12 +667,12 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* Bloco de Saúde & LGPD */}
+              {/* Bloco de Saúde & LGPD + Edição de Perfil (UC03) */}
               {profile && isAthlete && (
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
                   <div className="flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200">
                     <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                      <HeartPulse className="h-4 w-4" /> Dados de Emergência
+                      <HeartPulse className="h-4 w-4" /> Dados de Emergência & Kit
                     </span>
                     <span
                       className="text-[10px] text-slate-500 flex items-center gap-1"
@@ -518,32 +682,124 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <div className="text-xs space-y-2">
-                    <div>
-                      <span className="text-slate-500 dark:text-slate-400 block">
-                        Contato:
-                      </span>
-                      <span className="font-medium text-slate-800 dark:text-slate-200">
-                        {profile.emergencyContact}
-                      </span>
-                    </div>
-
-                    {profile.medicalNotes && (
+                  {!isEditingProfile ? (
+                    <div className="text-xs space-y-2.5">
                       <div>
                         <span className="text-slate-500 dark:text-slate-400 block">
-                          Notas Médicas:
+                          Contato:
                         </span>
                         <span className="font-medium text-slate-800 dark:text-slate-200">
-                          {profile.medicalNotes}
+                          {profile.emergencyContact}
                         </span>
                       </div>
-                    )}
 
-                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      <span>Consentimento LGPD ativo</span>
+                      {profile.medicalNotes && (
+                        <div>
+                          <span className="text-slate-500 dark:text-slate-400 block">
+                            Notas Médicas:
+                          </span>
+                          <span className="font-medium text-slate-800 dark:text-slate-200">
+                            {profile.medicalNotes}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
+                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          <span>Consentimento LGPD ativo</span>
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={handleOpenEditProfile}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          <span>Editar Perfil (UC03)</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <form onSubmit={handleUpdateProfileSubmit} className="space-y-3 pt-1 text-xs">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block">
+                          Tamanho da Camiseta Oficial *
+                        </label>
+                        <select
+                          value={editShirtSize}
+                          onChange={(e) =>
+                            setEditShirtSize(
+                              e.target.value as 'PP' | 'P' | 'M' | 'G' | 'GG',
+                            )
+                          }
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                        >
+                          <option value="PP">PP (Extra Pequeno)</option>
+                          <option value="P">P (Pequeno)</option>
+                          <option value="M">M (Médio)</option>
+                          <option value="G">G (Grande)</option>
+                          <option value="GG">GG (Extra Grande)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block">
+                          Contato de Emergência (com DDD) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={editEmergencyContact}
+                          onChange={(e) => setEditEmergencyContact(e.target.value)}
+                          placeholder="Ex: Maria - (92) 99222-3344"
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block">
+                          Observações Médicas (Criptografadas)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={editMedicalNotes}
+                          onChange={(e) => setEditMedicalNotes(e.target.value)}
+                          placeholder="Alergias, tipo sanguíneo..."
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs resize-none"
+                        />
+                      </div>
+
+                      <label className="flex items-start gap-2 cursor-pointer pt-1">
+                        <input
+                          type="checkbox"
+                          checked={editLgpdConsent}
+                          onChange={(e) => setEditLgpdConsent(e.target.checked)}
+                          className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-600"
+                        />
+                        <span className="text-[11px] text-slate-700 dark:text-slate-300 leading-snug">
+                          Confirmo o termo de consentimento LGPD para tratamento criptografado dos dados médicos de segurança *
+                        </span>
+                      </label>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingProfile(false)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={updateProfileMutation.isPending}
+                          className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold shadow-sm disabled:opacity-50 cursor-pointer"
+                        >
+                          {updateProfileMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               )}
             </div>
@@ -711,7 +967,7 @@ export default function DashboardPage() {
                       <span>Posto de Credenciamento na Arena (Check-in por QR Code)</span>
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                      Digite ou utilize um leitor de código de barras para validar o QR Code do atleta e liberar o kit oficial
+                      Digite ou utilize um leitor ótico para validar o QR Code do atleta e liberar o kit oficial (com alerta sonoro e visual anti-fraude)
                     </p>
                   </div>
 
@@ -723,7 +979,7 @@ export default function DashboardPage() {
                         required
                         value={qrCodeInput}
                         onChange={(e) => setQrCodeInput(e.target.value)}
-                        placeholder="Cole ou digite o hash (ex: RM-A1B2C3D4...)"
+                        placeholder="Cole ou escaneie o hash (ex: RM-DEMO2026MANAUS01)"
                         className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -746,11 +1002,25 @@ export default function DashboardPage() {
                     </button>
                   </form>
 
-                  {/* Feedback de Erro */}
+                  {/* Alerta Vermelho Sonoro e Visual de Duplicidade/Bloqueio (Exceção 6A/6B/6C) */}
                   {checkInError && (
-                    <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      <span>{checkInError}</span>
+                    <div className="p-4 rounded-2xl bg-rose-600 text-white shadow-lg shadow-rose-600/25 border-2 border-rose-400 space-y-1 animate-pulse">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
+                          <Volume2 className="h-4 w-4" />
+                          <span>ALERTA CRÍTICO DE ARENA • ENTREGA DE KIT BLOQUEADA</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setCheckInError(null)}
+                          className="text-rose-100 hover:text-white cursor-pointer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <p className="text-xs sm:text-sm font-medium text-rose-50">
+                        {checkInError}
+                      </p>
                     </div>
                   )}
 
@@ -814,7 +1084,7 @@ export default function DashboardPage() {
                       <span>Gestão de Eventos Esportivos</span>
                     </h2>
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                      Cadastre provas, configure percursos, gerencie lotes e libere credenciamento por QR Code
+                      Cadastre provas, configure múltiplos percursos, gerencie lotes e libere credenciamento por QR Code
                     </p>
                   </div>
 
@@ -827,7 +1097,7 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
-                {/* Formulário de Criação de Evento */}
+                {/* Formulário de Criação de Evento (UC04 - Múltiplas Modalidades e Lotes) */}
                 {showCreateModal && (
                   <form
                     onSubmit={handleCreateEvent}
@@ -895,72 +1165,115 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    {/* Bloco de Modalidade e Lote 1 */}
-                    <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 space-y-4">
-                      <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 block">
-                        Configuração da Modalidade & 1º Lote de Vagas
-                      </span>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                        <div className="sm:col-span-2 space-y-1">
-                          <label className="text-xs text-slate-500">Percurso / Modalidade *</label>
-                          <input
-                            type="text"
-                            required
-                            value={modalityName}
-                            onChange={(e) => setModalityName(e.target.value)}
-                            placeholder="Ex: 5km Corrida"
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-xs text-slate-500">Idade Mínima</label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={minAge}
-                            onChange={(e) => setMinAge(Number(e.target.value))}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-xs text-slate-500">Preço (R$) *</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min={0}
-                            required
-                            value={batchPrice}
-                            onChange={(e) => setBatchPrice(Number(e.target.value))}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
-                          />
-                        </div>
-
-                        <div className="space-y-1 sm:col-span-2">
-                          <label className="text-xs text-slate-500">Limite de Vagas do Lote *</label>
-                          <input
-                            type="number"
-                            min={1}
-                            required
-                            value={batchSlots}
-                            onChange={(e) => setBatchSlots(Number(e.target.value))}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
-                          />
-                        </div>
-
-                        <div className="space-y-1 sm:col-span-2">
-                          <label className="text-xs text-slate-500">Data Limite do Lote *</label>
-                          <input
-                            type="datetime-local"
-                            required
-                            value={batchEndDate}
-                            onChange={(e) => setBatchEndDate(e.target.value)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
-                          />
-                        </div>
+                    {/* Bloco Dinâmico de Modalidades e Lotes (UC04) */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                          Percursos (Modalidades) & Lotes de Vagas ({modalitiesForm.length})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleAddModalityRow}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        >
+                          <PlusCircle className="h-3.5 w-3.5" />
+                          <span>Adicionar Percurso (ex: 10km, 21km)</span>
+                        </button>
                       </div>
+
+                      {modalitiesForm.map((mod, idx) => (
+                        <div
+                          key={idx}
+                          className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                              Modalidade #{idx + 1}
+                            </span>
+                            {modalitiesForm.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveModalityRow(idx)}
+                                className="text-xs text-rose-600 hover:underline flex items-center gap-1 cursor-pointer"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                <span>Remover</span>
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <div className="sm:col-span-2 space-y-1">
+                              <label className="text-xs text-slate-500">Percurso / Modalidade *</label>
+                              <input
+                                type="text"
+                                required
+                                value={mod.name}
+                                onChange={(e) =>
+                                  handleModalityFieldChange(idx, 'name', e.target.value)
+                                }
+                                placeholder="Ex: 5km Corrida"
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-xs text-slate-500">Idade Mínima</label>
+                              <input
+                                type="number"
+                                min={0}
+                                value={mod.minAge}
+                                onChange={(e) =>
+                                  handleModalityFieldChange(idx, 'minAge', Number(e.target.value))
+                                }
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-xs text-slate-500">Preço Lote 1 (R$) *</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                required
+                                value={mod.batchPrice}
+                                onChange={(e) =>
+                                  handleModalityFieldChange(idx, 'batchPrice', Number(e.target.value))
+                                }
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
+                              />
+                            </div>
+
+                            <div className="space-y-1 sm:col-span-2">
+                              <label className="text-xs text-slate-500">Limite de Vagas do Lote *</label>
+                              <input
+                                type="number"
+                                min={1}
+                                required
+                                value={mod.batchSlots}
+                                onChange={(e) =>
+                                  handleModalityFieldChange(idx, 'batchSlots', Number(e.target.value))
+                                }
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
+                              />
+                            </div>
+
+                            <div className="space-y-1 sm:col-span-2">
+                              <label className="text-xs text-slate-500">Data Limite do Lote *</label>
+                              <input
+                                type="datetime-local"
+                                required
+                                value={mod.batchEndDate}
+                                onChange={(e) =>
+                                  handleModalityFieldChange(idx, 'batchEndDate', e.target.value)
+                                }
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
 
                     <div className="flex justify-end gap-2 pt-2">
