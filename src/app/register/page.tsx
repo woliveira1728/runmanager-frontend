@@ -160,7 +160,7 @@ export default function RegisterPage() {
           );
         } else if (err.code === 'ERR_NETWORK') {
           setErrorMessage(
-            'Não foi possível conectar ao servidor (Porta 3001). Verifique se o backend está online.'
+            'Não foi possível conectar ao servidor no momento. Tente novamente em instantes.'
           );
         } else {
           setErrorMessage(
@@ -478,7 +478,7 @@ export default function RegisterPage() {
                 <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                 <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed space-y-1">
                   <strong className="block text-slate-900 dark:text-white">
-                    Perfil de Organizador de Eventos (RBAC)
+                    Conta de Organizador de Eventos
                   </strong>
                   <p className="text-slate-600 dark:text-slate-400">
                     Ao criar uma conta de Organizador, você terá acesso imediato ao painel de criação de corridas de rua, configuração de múltiplos percursos e lotes de vagas, listagem de inscritos e console de check-in por QR Code na arena.
@@ -518,7 +518,7 @@ export default function RegisterPage() {
       </main>
 
       <footer className="py-4 text-center text-xs text-slate-500 dark:text-slate-500">
-        RunManager • Disciplina de Projeto Tecnológico em ADS • ULBRA
+        © 2026 RunManager • Plataforma de Gestão de Eventos Esportivos
       </footer>
     </div>
   );

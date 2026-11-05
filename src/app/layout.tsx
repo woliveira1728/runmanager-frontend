@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'RunManager | Gestão de Eventos Esportivos',
+  title: 'RunManager | Plataforma de Corridas de Rua e Eventos Esportivos',
   description:
-    'Plataforma fullstack de gestão de corridas de rua, inscrições com controle transacional e credenciamento ágil com QR Code na arena. ULBRA ADS.',
+    'Plataforma completa para gestão de corridas de rua, inscrições online por lotes, credenciamento rápido com QR Code na arena e apuração oficial de resultados.',
 };
 
 export default function RootLayout({

@@ -32,6 +32,9 @@ import {
   Check,
   Edit3,
   Volume2,
+  Camera,
+  Clock,
+  Medal,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { QRCodeSVG } from 'qrcode.react';
@@ -47,6 +50,8 @@ import {
   updateMyProfile,
 } from '@/lib/api';
 import { EventRegistrationsModal } from '@/components/event-registrations-modal';
+import { EventResultsModal } from '@/components/event-results-modal';
+import { QrScannerModal } from '@/components/qr-scanner-modal';
 
 /**
  * Emite feedback sonoro sintetizado via Web Audio API no check-in da arena (UC06).
@@ -171,11 +176,13 @@ export default function DashboardPage() {
   const isOrganizer = user?.role === 'ORGANIZER';
   const isAdmin = user?.role === 'ADMIN';
 
-  // Estados de check-in na arena (Organizador / Admin)
+  // Estados de check-in na arena e apuração de tempos (Organizador / Admin)
   const [qrCodeInput, setQrCodeInput] = useState('');
+  const [showQrScanner, setShowQrScanner] = useState(false);
   const [checkInResult, setCheckInResult] = useState<Registration | null>(null);
   const [checkInError, setCheckInError] = useState<string | null>(null);
   const [selectedEventForAttendees, setSelectedEventForAttendees] = useState<SportEvent | null>(null);
+  const [selectedEventForResults, setSelectedEventForResults] = useState<SportEvent | null>(null);
   const [copiedHashId, setCopiedHashId] = useState<string | null>(null);
 
   // Busca inscrições do atleta logado via TanStack Query
@@ -225,7 +232,7 @@ export default function DashboardPage() {
 
     if (!editLgpdConsent) {
       setActionError(
-        'Exceção 3A: O consentimento obrigatório da LGPD para dados sensíveis de emergência não pode ser desmarcado, pois é requisito para segurança nas provas.',
+        'O consentimento da LGPD para dados sensíveis de emergência é obrigatório, pois é requisito para segurança nas provas.',
       );
       return;
     }
@@ -233,7 +240,7 @@ export default function DashboardPage() {
     const phoneDigits = editEmergencyContact.replace(/\D/g, '');
     if (phoneDigits.length < 10 || !/^[1-9]{2}/.test(phoneDigits)) {
       setActionError(
-        'Exceção 3B: O contato de emergência deve conter um telefone com DDD válido (ex: (92) 99222-3344).',
+        'O contato de emergência deve conter um telefone com DDD válido (ex: (92) 99222-3344).',
       );
       return;
     }
@@ -424,7 +431,7 @@ export default function DashboardPage() {
       const batchDateObj = new Date(mod.batchEndDate);
       if (batchDateObj > evDateObj) {
         setActionError(
-          `Exceção 4A: A data limite do lote da modalidade "${mod.name}" não pode ser posterior à data do evento.`,
+          `A data limite do lote da modalidade "${mod.name}" não pode ser posterior à data do evento.`,
         );
         return;
       }
@@ -468,7 +475,7 @@ export default function DashboardPage() {
       {/* Top Navbar */}
       <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
               <Trophy className="h-5 w-5" />
             </div>
@@ -480,7 +487,7 @@ export default function DashboardPage() {
                 {isAdmin && 'Área do Administrador'}
               </span>
             </div>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-3 sm:gap-4">
             <ThemeToggle />
@@ -491,7 +498,7 @@ export default function DashboardPage() {
                   {user.name}
                 </p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                  {user.role}
+                  {isAthlete ? 'Atleta' : isOrganizer ? 'Organizador' : 'Administrador'}
                 </p>
               </div>
             </div>
@@ -547,7 +554,7 @@ export default function DashboardPage() {
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-medium">
               <Sparkles className="h-3.5 w-3.5" />
               <span>
-                {isAthlete && 'Painel do Participante • Autenticação Segura JWT'}
+                {isAthlete && 'Painel Oficial do Atleta'}
                 {isOrganizer && 'Painel de Gestão de Provas • Organizador Oficial'}
                 {isAdmin && 'Painel Geral do Sistema • Gestão Global'}
               </span>
@@ -608,10 +615,10 @@ export default function DashboardPage() {
 
                 <div>
                   <span className="text-slate-500 dark:text-slate-400 text-xs block">
-                    Papel no Sistema (RBAC)
+                    Tipo de Conta
                   </span>
                   <span className="inline-block mt-1 font-semibold text-xs px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                    {user.role}
+                    {isAthlete ? 'Atleta Oficial' : isOrganizer ? 'Organizador de Eventos' : 'Administrador'}
                   </span>
                 </div>
 
@@ -716,7 +723,7 @@ export default function DashboardPage() {
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                         >
                           <Edit3 className="h-3 w-3" />
-                          <span>Editar Perfil (UC03)</span>
+                          <span>Editar Perfil</span>
                         </button>
                       </div>
                     </div>
@@ -928,6 +935,45 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Bloco de Tempo Oficial Homologado (UC07) */}
+                        {reg.result && (
+                          <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50 via-blue-50 to-emerald-50 dark:from-indigo-950/50 dark:via-blue-950/40 dark:to-emerald-950/40 border border-indigo-200 dark:border-indigo-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                                <Medal className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block">
+                                  Resultado Oficial Homologado
+                                </span>
+                                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                                  {reg.result.overallPos}º Lugar Geral na Modalidade •{' '}
+                                  {reg.result.categoryPos}º na Faixa Etária
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 text-xs">
+                              <div className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 text-center">
+                                <span className="text-[10px] text-slate-500 block">
+                                  Tempo Líquido
+                                </span>
+                                <span className="font-mono font-extrabold text-sm text-emerald-600 dark:text-emerald-400">
+                                  {reg.result.netTime}
+                                </span>
+                              </div>
+                              <div className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                                <span className="text-[10px] text-slate-500 block">
+                                  Tempo Bruto
+                                </span>
+                                <span className="font-mono font-bold text-sm text-slate-700 dark:text-slate-300">
+                                  {reg.result.grossTime}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -983,6 +1029,15 @@ export default function DashboardPage() {
                         className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowQrScanner(true)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer"
+                      title="Escanear QR Code pela câmera ou imagem (html5-qrcode)"
+                    >
+                      <Camera className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <span>Ler pela Câmera</span>
+                    </button>
                     <button
                       type="submit"
                       disabled={checkInMutation.isPending || !qrCodeInput.trim()}
@@ -1343,15 +1398,25 @@ export default function DashboardPage() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 self-end sm:self-center">
+                            <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
                               <button
                                 type="button"
                                 onClick={() => setSelectedEventForAttendees(event)}
                                 className="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                                title="Ver lista de inscritos e check-in"
+                                title="Ver lista de inscritos, pagamento e check-in"
                               >
                                 <Users className="h-3.5 w-3.5" />
                                 <span>Inscritos</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setSelectedEventForResults(event)}
+                                className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                                title="Importar planilha CSV ou registrar tempos oficiais"
+                              >
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>Resultados & Tempos</span>
                               </button>
 
                               {event.status === 'DRAFT' && (
@@ -1431,9 +1496,28 @@ export default function DashboardPage() {
       event={selectedEventForAttendees}
     />
 
+    {/* Modal de Importação e Registro de Tempos Oficiais (UC07) */}
+    <EventResultsModal
+      isOpen={!!selectedEventForResults}
+      onClose={() => setSelectedEventForResults(null)}
+      event={selectedEventForResults}
+    />
+
+    {/* Modal de Leitura Ótica de QR Code por Câmera/Imagem (UC06) */}
+    <QrScannerModal
+      isOpen={showQrScanner}
+      onClose={() => setShowQrScanner(false)}
+      onDetected={(hash) => {
+        setShowQrScanner(false);
+        setQrCodeInput(hash);
+        setCheckInError(null);
+        checkInMutation.mutate({ qrCodeHash: hash });
+      }}
+    />
+
     {/* Footer */}
     <footer className="border-t border-slate-200 dark:border-slate-800 py-6 bg-white dark:bg-slate-900 text-center text-xs text-slate-500">
-      RunManager • Plataforma de Gestão de Eventos Esportivos • Projeto Tecnológico ADS ULBRA
+      © 2026 RunManager • Plataforma de Gestão de Corridas de Rua e Eventos Esportivos
     </footer>
   </div>
 );

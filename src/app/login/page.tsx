@@ -31,7 +31,7 @@ function LoginForm() {
         if (err.response?.status === 401) {
           setErrorMessage('E-mail ou senha incorretos. Verifique suas credenciais.');
         } else if (err.code === 'ERR_NETWORK') {
-          setErrorMessage('Não foi possível conectar ao servidor (Porta 3001). Verifique se o backend está online.');
+          setErrorMessage('Não foi possível conectar ao servidor no momento. Tente novamente em instantes.');
         } else {
           setErrorMessage(
             (err.response?.data as { message?: string })?.message ||
@@ -170,7 +170,7 @@ export default function LoginPage() {
       </main>
 
       <footer className="py-4 text-center text-xs text-slate-500 dark:text-slate-500">
-        RunManager • Disciplina de Projeto Tecnológico em ADS • ULBRA
+        © 2026 RunManager • Plataforma de Gestão de Eventos Esportivos
       </footer>
     </div>
   );

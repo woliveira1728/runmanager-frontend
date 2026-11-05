@@ -254,3 +254,94 @@ export async function checkInRegistration(
   const response = await api.post<Registration>('/registrations/check-in', data);
   return response.data;
 }
+
+export async function updateRegistrationPaymentStatus(
+  registrationId: string,
+  paymentStatus: PaymentStatus,
+): Promise<Registration> {
+  const response = await api.patch<Registration>(
+    `/registrations/${registrationId}/payment-status`,
+    { paymentStatus },
+  );
+  return response.data;
+}
+
+export interface EventResultItem {
+  id: string;
+  registrationId: string;
+  grossTime: string;
+  netTime: string;
+  overallPos: number;
+  categoryPos: number;
+  importedAt: string;
+  ageCategory?: string;
+  registration: {
+    id: string;
+    bibNumber: number | null;
+    athlete?: {
+      id: string;
+      name: string;
+      email: string;
+      athleteProfile?: {
+        cpf: string;
+        gender: 'M' | 'F' | 'OUTRO';
+        birthDate?: string;
+        shirtSize: 'PP' | 'P' | 'M' | 'G' | 'GG';
+      };
+    };
+    batch: {
+      id: string;
+      modality: {
+        id: string;
+        name: string;
+      };
+    };
+  };
+}
+
+export interface RecordSingleResultInput {
+  bibNumber: number;
+  grossTime: string;
+  netTime: string;
+}
+
+export interface ImportResultsInput {
+  csvContent?: string;
+  items?: RecordSingleResultInput[];
+  ignoreInvalidBibs?: boolean;
+}
+
+export interface ImportResultsResponse {
+  importedCount: number;
+  skippedInvalidBibs: number[];
+  results: EventResultItem[];
+}
+
+export async function recordSingleResult(
+  eventId: string,
+  data: RecordSingleResultInput,
+): Promise<EventResultItem> {
+  const response = await api.post<EventResultItem>(
+    `/results/event/${eventId}/manual`,
+    data,
+  );
+  return response.data;
+}
+
+export async function importEventResults(
+  eventId: string,
+  data: ImportResultsInput,
+): Promise<ImportResultsResponse> {
+  const response = await api.post<ImportResultsResponse>(
+    `/results/event/${eventId}/import`,
+    data,
+  );
+  return response.data;
+}
+
+export async function fetchEventResults(
+  eventId: string,
+): Promise<EventResultItem[]> {
+  const response = await api.get<EventResultItem[]>(`/results/event/${eventId}`);
+  return response.data;
+}

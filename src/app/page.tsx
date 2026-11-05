@@ -3,16 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { 
-  Trophy, 
-  QrCode, 
-  ShieldCheck, 
-  Timer, 
-  CheckCircle2, 
-  XCircle, 
-  RefreshCw, 
+import {
+  Trophy,
+  QrCode,
+  ShieldCheck,
+  Timer,
   ArrowRight,
-  ExternalLink,
   Activity,
   Layers,
   Users,
@@ -21,28 +17,17 @@ import {
   LayoutDashboard,
   Calendar,
   MapPin,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
-import { checkApiHealth, fetchPublishedEvents, Event as SportEvent } from '@/lib/api';
+import { fetchPublishedEvents, Event as SportEvent } from '@/lib/api';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth } from '@/contexts/auth-context';
 import { RegistrationModal } from '@/components/registration-modal';
 
 export default function Home() {
   const { isAuthenticated, user } = useAuth();
-  const [selectedEventForModal, setSelectedEventForModal] = useState<SportEvent | null>(null);
-
-  // Verificação de saúde da API
-  const { 
-    data: apiStatus, 
-    isLoading: loading, 
-    error,
-    refetch 
-  } = useQuery({
-    queryKey: ['api-health'],
-    queryFn: checkApiHealth,
-    retry: 1,
-  });
+  const [selectedEventForModal, setSelectedEventForModal] =
+    useState<SportEvent | null>(null);
 
   // Vitrine de eventos publicados
   const { data: publishedEvents, isLoading: loadingEvents } = useQuery({
@@ -60,9 +45,11 @@ export default function Home() {
               <Trophy className="h-5 w-5" />
             </div>
             <div>
-              <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">RunManager</span>
-              <span className="hidden sm:inline-block ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                ULBRA ADS • AP2
+              <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                RunManager
+              </span>
+              <span className="hidden sm:inline-block ml-2 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                Corridas & Eventos
               </span>
             </div>
           </div>
@@ -70,23 +57,13 @@ export default function Home() {
           <div className="flex items-center gap-3 sm:gap-4">
             <ThemeToggle />
 
-            <a
-              href="http://localhost:3001/api/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden md:inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            >
-              Swagger
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-
             {isAuthenticated ? (
               <Link
                 href="/dashboard"
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all"
               >
                 <LayoutDashboard className="h-4 w-4" />
-                <span>Painel ({user?.name?.split(' ')[0]})</span>
+                <span>Meu Painel ({user?.name?.split(' ')[0]})</span>
               </Link>
             ) : (
               <div className="flex items-center gap-2">
@@ -102,7 +79,7 @@ export default function Home() {
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-500/20 transition-all"
                 >
                   <UserPlus className="h-4 w-4" />
-                  <span>Cadastrar</span>
+                  <span>Criar Conta</span>
                 </Link>
               </div>
             )}
@@ -113,49 +90,21 @@ export default function Home() {
       {/* Hero Section */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16 flex-1 flex flex-col justify-center">
         <div className="text-center max-w-3xl mx-auto space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs sm:text-sm font-medium">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs sm:text-sm font-medium">
             <Activity className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <span>Engenharia de Software • Projeto Tecnológico ADS</span>
+            <span>Plataforma Oficial de Corridas de Rua & Eventos Esportivos</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
-            Gestão Inteligente de <span className="text-blue-600 dark:text-blue-400">Corridas de Rua</span>
+            Sua próxima conquista começa na{' '}
+            <span className="text-blue-600 dark:text-blue-400">largada certa</span>
           </h1>
 
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            Plataforma fullstack desenvolvida para eliminar gargalos de credenciamento na arena
-            através de leitura em tempo real de <strong>QR Code</strong>, reserva transacional de vagas e apuração de resultados com conformidade à <strong>LGPD</strong>.
+            Inscreva-se nas principais corridas de rua, receba seu número de peito
+            e retire seu kit na arena em segundos com <strong>QR Code digital</strong>,
+            acompanhando seus tempos e classificações oficiais em um só lugar.
           </p>
-
-          {/* Status Badge Backend Integration */}
-          <div className="pt-2 flex justify-center">
-            <div className="inline-flex flex-wrap items-center gap-3 p-3 sm:px-5 sm:py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-sm">
-              <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                Status da API:
-              </span>
-              {loading ? (
-                <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
-                  <RefreshCw className="h-4 w-4 animate-spin" /> Verificando backend...
-                </span>
-              ) : apiStatus ? (
-                <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
-                  <CheckCircle2 className="h-4 w-4" /> Conectado (v{apiStatus.version})
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-medium" title={error?.message || 'Erro de conexão'}>
-                  <XCircle className="h-4 w-4" /> Desconectado (Porta 3001)
-                </span>
-              )}
-
-              <button
-                onClick={() => refetch()}
-                title="Atualizar conexão com a API (TanStack Query)"
-                className="ml-1 p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
 
           {/* Call to Actions */}
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
@@ -175,7 +124,7 @@ export default function Home() {
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 active:scale-[0.99] transition-all"
                 >
                   <UserPlus className="h-4 w-4" />
-                  <span>Cadastrar-se como Atleta</span>
+                  <span>Começar Agora</span>
                   <ArrowRight className="h-4 w-4" />
                 </Link>
 
@@ -184,7 +133,7 @@ export default function Home() {
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 font-semibold text-sm shadow-sm transition-all"
                 >
                   <LogIn className="h-4 w-4" />
-                  <span>Acessar Minha Conta</span>
+                  <span>Já Tenho Conta</span>
                 </Link>
               </>
             )}
@@ -197,14 +146,14 @@ export default function Home() {
             <div>
               <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">
                 <Sparkles className="h-3.5 w-3.5" />
-                <span>Vitrine Oficial de Provas</span>
+                <span>Calendário Oficial</span>
               </div>
               <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                 Corridas com Inscrições Abertas
               </h2>
             </div>
             <span className="text-xs text-slate-500 dark:text-slate-400">
-              Vagas limitadas com reserva transacional
+              Garanta seu lote promocional e número de peito imediato
             </span>
           </div>
 
@@ -226,7 +175,10 @@ export default function Home() {
                       </span>
                       {event.modalities?.[0]?.registrationBatches?.[0] && (
                         <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                          A partir de R$ {Number(event.modalities[0].registrationBatches[0].price).toFixed(2)}
+                          A partir de R${' '}
+                          {Number(
+                            event.modalities[0].registrationBatches[0].price,
+                          ).toFixed(2)}
                         </span>
                       )}
                     </div>
@@ -243,11 +195,14 @@ export default function Home() {
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-blue-600 shrink-0" />
                         <span>
-                          {new Date(event.eventDate).toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric',
-                          })}
+                          {new Date(event.eventDate).toLocaleDateString(
+                            'pt-BR',
+                            {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                            },
+                          )}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -291,7 +246,8 @@ export default function Home() {
                 Nenhuma corrida com inscrições abertas no momento
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                Organizadores de eventos esportivos podem cadastrar suas provas através do painel administrativo.
+                Novos eventos esportivos serão divulgados em breve. Se você é
+                organizador, publique sua prova no painel.
               </p>
               {isAuthenticated && user?.role === 'ORGANIZER' && (
                 <div className="pt-2">
@@ -314,9 +270,12 @@ export default function Home() {
             <div className="h-12 w-12 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4">
               <QrCode className="h-6 w-6" />
             </div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Check-in na Arena</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white mb-2">
+              Retirada de Kit sem Filas
+            </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Validação ágil de presença e liberação de kits via leitura de credencial com QR Code na câmera do organizador.
+              Apresente o QR Code do seu bilhete digital na arena para conferência
+              instantânea e entrega do seu kit no tamanho exato.
             </p>
           </div>
 
@@ -324,9 +283,12 @@ export default function Home() {
             <div className="h-12 w-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4">
               <Layers className="h-6 w-6" />
             </div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Controle de Vagas</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white mb-2">
+              Lotes em Tempo Real
+            </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Lotes com trava transacional atômica no PostgreSQL, prevenindo inscrições duplicadas e sobrecarga de vagas.
+              Escolha sua distância favorita com disponibilidade atualizada em
+              tempo real e receba seu número de peito no ato da inscrição.
             </p>
           </div>
 
@@ -334,9 +296,12 @@ export default function Home() {
             <div className="h-12 w-12 rounded-xl bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4">
               <ShieldCheck className="h-6 w-6" />
             </div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Conformidade LGPD</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white mb-2">
+              Segurança & Privacidade
+            </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Proteção de dados médicos e contatos de emergência com criptografia em repouso e registro expresso de consentimento.
+              Seus dados de saúde e contatos de emergência são protegidos por
+              criptografia avançada em total conformidade com a LGPD.
             </p>
           </div>
 
@@ -344,38 +309,42 @@ export default function Home() {
             <div className="h-12 w-12 rounded-xl bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
               <Timer className="h-6 w-6" />
             </div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Tempos & Rankings</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white mb-2">
+              Resultados & Categorias
+            </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Importação de cronometragem oficial com cálculo automático de posições gerais e segmentadas por faixa etária.
+              Consulte seu tempo líquido, tempo bruto, colocação geral e posição
+              na sua faixa etária oficial logo após cruzar a linha de chegada.
             </p>
           </div>
         </div>
 
-        {/* Modules Section */}
+        {/* Banner para Organizadores */}
         <div className="mt-14 p-8 rounded-3xl bg-slate-900 dark:bg-slate-900/90 border border-slate-800 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <span className="text-xs uppercase tracking-wider font-semibold text-blue-400">
-              Arquitetura Fullstack • Next.js + NestJS
+              Para Organizadores & Assessorias Esportivas
             </span>
             <h2 className="text-2xl font-bold tracking-tight">
-              Módulos e Atores do Sistema RunManager
+              Organize sua próxima corrida de rua no RunManager
             </h2>
             <p className="text-sm text-slate-300">
-              Desenvolvido com controle de acesso baseado em papéis (RBAC): Atleta, Organizador de Provas e Administrador Geral.
+              Cadastre múltiplos percursos, gerencie lotes de vagas, opere o
+              check-in de kits na arena por câmera e publique a cronometragem
+              oficial da sua prova em minutos.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <a
-              href="http://localhost:3001/api/docs"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href={isAuthenticated ? '/dashboard' : '/register'}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-500 transition shadow-sm"
             >
-              Swagger API <ArrowRight className="h-4 w-4" />
-            </a>
+              <span>Publicar Meu Evento</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
             <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 text-slate-200 text-sm border border-slate-700">
-              <Users className="h-4 w-4 text-slate-400" /> Multi-Tenant RBAC
+              <Users className="h-4 w-4 text-slate-400" /> Credenciamento Ágil
             </div>
           </div>
         </div>
@@ -385,14 +354,12 @@ export default function Home() {
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
           <div>
-            <strong>RunManager</strong> • Projeto Tecnológico em Desenvolvimento de Sistemas
+            <strong>RunManager</strong> • Plataforma de Gestão de Corridas de Rua e Eventos Esportivos
           </div>
           <div>
-            Acadêmico: <strong>Wilson Dias de Oliveira</strong> (woliveira1728@rede.ulbra.br)
+            Proteção de Dados em Conformidade com a LGPD (Lei nº 13.709/2018)
           </div>
-          <div>
-            Universidade Luterana do Brasil — <strong>ULBRA EAD</strong>
-          </div>
+          <div>© 2026 RunManager. Todos os direitos reservados.</div>
         </div>
       </footer>
 
