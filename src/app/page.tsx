@@ -36,49 +36,52 @@ export default function Home() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen overflow-x-hidden flex flex-col justify-between bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200">
       {/* Top Navbar */}
       <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-              <Trophy className="h-5 w-5" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
+              <Trophy className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <div className="flex items-center">
+              <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                 RunManager
               </span>
-              <span className="hidden sm:inline-block ml-2 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+              <span className="hidden md:inline-block ml-2 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap">
                 Corridas & Eventos
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <ThemeToggle />
 
             {isAuthenticated ? (
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all"
+                className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all whitespace-nowrap"
               >
-                <LayoutDashboard className="h-4 w-4" />
-                <span>Meu Painel ({user?.name?.split(' ')[0]})</span>
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                <span className="sm:hidden">Meu Painel</span>
+                <span className="hidden sm:inline">
+                  Meu Painel ({user?.name?.split(' ')[0]})
+                </span>
               </Link>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap"
                 >
-                  <LogIn className="h-4 w-4" />
+                  <LogIn className="hidden sm:inline-block h-4 w-4 shrink-0" />
                   <span>Entrar</span>
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-500/20 transition-all"
+                  className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-500/20 transition-all whitespace-nowrap"
                 >
-                  <UserPlus className="h-4 w-4" />
+                  <UserPlus className="hidden sm:inline-block h-4 w-4 shrink-0" />
                   <span>Criar Conta</span>
                 </Link>
               </div>
